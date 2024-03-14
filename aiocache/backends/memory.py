@@ -1,4 +1,5 @@
 import asyncio
+from collections import OrderedDict
 from typing import Any, Dict, Optional
 
 from aiocache.base import BaseCache
@@ -11,11 +12,11 @@ class SimpleMemoryBackend(BaseCache[str]):
     """
 
     # TODO(PY312): https://peps.python.org/pep-0692/
-    def __init__(self, maxsize: int=None, **kwargs: Any):
+    def __init__(self, maxsize: int = None, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._maxsize = maxsize
-        self._cache: Dict[str, object] = {}
+        self._cache: OrderedDict[str, object] = OrderedDict()
         self._handlers: Dict[str, asyncio.TimerHandle] = {}
 
     async def _get(self, key, encoding="utf-8", _conn=None):
@@ -35,7 +36,7 @@ class SimpleMemoryBackend(BaseCache[str]):
             self._handlers[key].cancel()
 
         if self._maxsize is not None and len(self._cache) > self._maxsize:
-            last_key, _ = self._cache.popitem()
+            last_key, _ = self._cache.popitem(last=False)
             handle = self._handlers.pop(last_key)
             if handle:
                 handle.cancel()
@@ -53,7 +54,9 @@ class SimpleMemoryBackend(BaseCache[str]):
 
     async def _add(self, key, value, ttl=None, _conn=None):
         if key in self._cache:
-            raise ValueError("Key {} already exists, use .set to update the value".format(key))
+            raise ValueError(
+                "Key {} already exists, use .set to update the value".format(key)
+            )
 
         await self._set(key, value, ttl=ttl)
         return True
