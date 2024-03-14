@@ -11,9 +11,10 @@ class SimpleMemoryBackend(BaseCache[str]):
     """
 
     # TODO(PY312): https://peps.python.org/pep-0692/
-    def __init__(self, **kwargs: Any):
+    def __init__(self, maxsize: int=None, **kwargs: Any):
         super().__init__(**kwargs)
 
+        self._maxsize = maxsize
         self._cache: Dict[str, object] = {}
         self._handlers: Dict[str, asyncio.TimerHandle] = {}
 
@@ -32,6 +33,12 @@ class SimpleMemoryBackend(BaseCache[str]):
 
         if key in self._handlers:
             self._handlers[key].cancel()
+
+        if self._maxsize is not None and len(self._cache) > self._maxsize:
+            last_key, _ = self._cache.popitem()
+            handle = self._handlers.pop(last_key)
+            if handle:
+                handle.cancel()
 
         self._cache[key] = value
         if ttl:
